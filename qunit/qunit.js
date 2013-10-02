@@ -16,6 +16,9 @@ var QUnit,
 	onErrorFnPrev,
 	testId = 0,
 	fileName = (sourceFromStacktrace( 0 ) || "" ).replace(/(:\d+)+\)?/, "").replace(/.+\//, ""),
+    ignoreFiles = [ "qunit.js", "sinon.js", "sinon-qunit", "jshamcrest.js" ],
+    basePath = null,
+    baseUri = null,
 	toString = Object.prototype.toString,
 	hasOwn = Object.prototype.hasOwnProperty,
 	// Keep a local reference to Date (GH-283)
@@ -105,6 +108,7 @@ Test.prototype = {
 			a = document.createElement( "a" );
 			a.innerHTML = "Rerun";
 			a.href = QUnit.url({ testNumber: this.testNumber });
+            a.className = "rerun";
 
 			li = document.createElement( "li" );
 			li.appendChild( b );
@@ -385,6 +389,15 @@ Test.prototype = {
 // `QUnit` initialized at top of scope
 QUnit = {
 
+    setBasePath: function( path ) {
+        basePath = path;
+        baseUri = ( document && document.location && document.location.origin ) || null;
+    },
+
+    ignoreFile: function( file ) {
+        ignoreFiles.push( file );
+    },
+
 	// call on start of module test to prepend name to all tests
 	module: function( name, testEnvironment ) {
 		config.currentModule = name;
@@ -534,7 +547,7 @@ assert = {
 			source = sourceFromStacktrace( 2 );
 			if ( source ) {
 				details.source = source;
-				msg += "<table><tr class='test-source'><th>Source: </th><td><pre>" + escapeText( source ) + "</pre></td></tr></table>";
+				msg += "<table><tr class='test-source'><th>Source: </th><td><pre>" + source + "</pre></td></tr></table>";
 			}
 		}
 		runLoggingCallbacks( "log", QUnit, details );
@@ -945,7 +958,7 @@ extend( QUnit, {
 
 			if ( source ) {
 				details.source = source;
-				output += "<tr class='test-source'><th>Source: </th><td><pre>" + escapeText( source ) + "</pre></td></tr>";
+				output += "<tr class='test-source'><th>Source: </th><td><pre>" + source + "</pre></td></tr>";
 			}
 
 			output += "</table>";
@@ -984,7 +997,7 @@ extend( QUnit, {
 
 		if ( source ) {
 			details.source = source;
-			output += "<tr class='test-source'><th>Source: </th><td><pre>" + escapeText( source ) + "</pre></td></tr>";
+			output += "<tr class='test-source'><th>Source: </th><td><pre>" + source + "</pre></td></tr>";
 		}
 
 		output += "</table>";
@@ -1365,7 +1378,7 @@ function validTest( test ) {
 function extractStacktrace( e, offset ) {
 	offset = offset === undefined ? 3 : offset;
 
-	var stack, include, i;
+	var stack, include, i, j, skip, file, match;
 
 	if ( e.stacktrace ) {
 		// Opera
@@ -1382,7 +1395,28 @@ function extractStacktrace( e, offset ) {
 				if ( stack[ i ].indexOf( fileName ) !== -1 ) {
 					break;
 				}
-				include.push( stack[ i ] );
+                var skip = false;
+                for ( j = ignoreFiles.length; j >= 0; j-- ) {
+                    if ( stack[ i ].indexOf( ignoreFiles[ j ] ) !== -1 ) {
+                        skip = true;
+                        break;
+                    }
+                }
+                if ( skip ) {
+                    continue;
+                }
+                file = stack[ i ];
+                if (basePath && baseUri && /^\s*at\s/.test(file)) {
+                    match = /^(.*)\((.*):(\d+):(\d+)\)/.exec(file.replace(baseUri, ""));
+                    console.log(match);
+                    if ( match && match.length === 5 ) {
+                        file = escapeText( match[1] ) + '(<a href="edit://open/?file=' + basePath + match[2] + "&amp;line=" + match[3] + '">' +
+                                match[2] + ':' + match[3] + '</a>)';
+                        include.push( file );
+                        continue;
+                    }
+                }
+                include.push( escapeText( file ) );
 			}
 			if ( include.length ) {
 				return include.join( "\n" );

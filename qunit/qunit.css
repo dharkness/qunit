@@ -101,13 +101,13 @@
 	cursor: pointer;
 }
 
-#qunit-tests li a {
+#qunit-tests li a.rerun {
 	padding: 0.5em;
 	color: #c2ccd1;
 	text-decoration: none;
 }
-#qunit-tests li a:hover,
-#qunit-tests li a:focus {
+#qunit-tests li a.rerun:hover,
+#qunit-tests li a.rerun:focus {
 	color: #000;
 }
 
